@@ -11,6 +11,9 @@ pair<int, int> directions[8] = {
         { -1, -1 }, { 0, -1 }, { 1, -1 },
         { -1,  0 },                { 1,  0 },
         { -1,  1 }, { 0,  1 }, { 1,  1 }};
+
+
+
 class Grid {
 public:
     bool* grid;
@@ -84,6 +87,8 @@ public:
 
     }
 
+
+
     void stepSimulation() {
         bool tempGrid[cellCount];
 
@@ -104,6 +109,42 @@ public:
 
     }
 
+    void loadFromFile(string fileName) {
+        bool* tempGrid = new bool[cellCount];
+        for (int i = 0; i < cellCount; ++i) {
+            tempGrid[i] = false;
+        }
+
+        ifstream file(fileName+".txt");
+
+        char inp;
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                file.get(inp);
+                bool val = false;
+                if (inp == '1') {
+                    val = true;
+                }
+                tempGrid[y*w + x] = val;
+            }
+            file.get(inp); //discard \n
+        }
+
+        for (int i = 0; i < cellCount; ++i) {
+            grid[i] = tempGrid[i];
+        }
+
+    }
+
+    void saveToFile(string fileName) {
+        ofstream file(fileName+".txt");
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                file << grid[y*w + x];
+            }
+            file << endl;
+        }
+    }
 private:
 
 };
@@ -112,19 +153,36 @@ private:
 
 int main() {
     //setup
-    srand(1);
+    srand(2);
     Grid grid = Grid();
-    grid.initGrid(30,30);
-    grid.randomiseGrid(150);
+    grid.initGrid(10, 10);
+    grid.randomiseGrid(25);
 
 
 
     grid.printGrid();
-    grid.stepSimulation();
-    cout << endl;
-    grid.printGrid();
-    string b;
 
+
+    while (true) {
+        string input;
+
+
+        cout << "new - create new game \nstep - step existing game\nsave file.txt - save grid to file\nload file.txt - load grid from file\n";
+        cin >> input;
+        if (input.substr(0,4) == "save") {
+            cout << "name of file:";
+            string name;
+            cin >> name;
+            grid.saveToFile(name);
+        }
+        if (input.substr(0,4) == "load") {
+            cout << "name of file to load:";
+            string name;
+            cin >> name;
+            grid.loadFromFile(name);
+            grid.printGrid();
+        }
+    }
 
 
     return 0;
