@@ -7,6 +7,8 @@ using namespace std;
 static char emptyChar = ' ';
 static char fullChar = '#';
 
+static int threadCount = 12;
+
 pair<int, int> directions[8] = {
         { -1, -1 }, { 0, -1 }, { 1, -1 },
         { -1,  0 },                { 1,  0 },
@@ -36,6 +38,7 @@ public:
     }
 
     void printGrid() {
+        cout << endl;
         for (int i = 0; i < h; ++i) {
             for (int j = 0; j < w; ++j) {
                 grid[i*w + j] ? cout << fullChar : cout << emptyChar;
@@ -97,12 +100,16 @@ public:
         }
 
 
+        
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
                 int cellNumber = y*w + x;
                 tempGrid[cellNumber] = calculateCell(x, y);
             }
         }
+
+
+
         for (int i = 0; i < cellCount; ++i) {
             grid[i] = tempGrid[i];
         }
@@ -110,13 +117,28 @@ public:
     }
 
     void loadFromFile(string fileName) {
-        bool* tempGrid = new bool[cellCount];
-        for (int i = 0; i < cellCount; ++i) {
-            tempGrid[i] = false;
-        }
+        delete grid;
+
 
         ifstream file(fileName+".txt");
+        if (!file.is_open()) {
+            cout << "file failed to open";
+            return;
+        }
 
+        string line;
+
+        getline(file, line);
+        w = stoi(line);
+        getline(file, line);
+        h = stoi(line);
+
+        cellCount = w * h;
+        cout << w << "x" << h << endl;
+        grid = new bool[cellCount];
+        for (int i = 0; i < cellCount; ++i) {
+            grid[i] = false;
+        }
         char inp;
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
@@ -125,19 +147,18 @@ public:
                 if (inp == '1') {
                     val = true;
                 }
-                tempGrid[y*w + x] = val;
+                grid[y*w + x] = val;
             }
             file.get(inp); //discard \n
         }
 
-        for (int i = 0; i < cellCount; ++i) {
-            grid[i] = tempGrid[i];
-        }
+
 
     }
 
     void saveToFile(string fileName) {
         ofstream file(fileName+".txt");
+        file << w << endl << h << endl;
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
                 file << grid[y*w + x];
@@ -155,33 +176,65 @@ int main() {
     //setup
     srand(2);
     Grid grid = Grid();
-    grid.initGrid(10, 10);
-    grid.randomiseGrid(25);
 
-
-
-    grid.printGrid();
+    // if a grid is loaded;
+    bool simulating = false;
 
 
     while (true) {
         string input;
+        if (simulating) {
+            cout << "cmds: step, save, exit: ";
+            cin >> input;
+            if (input.substr(0,4) == "exit") {
+                simulating = false;
+            }
+            else if (input.substr(0,4) == "save") {
+                cout << "name of file:";
+                string name;
+                cin >> name;
 
 
-        cout << "new - create new game \nstep - step existing game\nsave file.txt - save grid to file\nload file.txt - load grid from file\n";
-        cin >> input;
-        if (input.substr(0,4) == "save") {
-            cout << "name of file:";
-            string name;
-            cin >> name;
-            grid.saveToFile(name);
+                grid.saveToFile(name);
+            }
+            else if (input.substr(0,4) == "step") {
+
+                grid.stepSimulation();
+                grid.printGrid();
+            }
+
+        } else {
+            cout << "cmds: new, load: ";
+            cin >> input;
+            if (input.substr(0,3) == "new") {
+                int x, y, cellAmt;
+                cout << "x: ";
+                cin >> x;
+                cout << "y: ";
+                cin >> y;
+                cout << "cell#: ";
+                cin >> cellAmt;
+
+
+                grid.initGrid(x, y);
+                grid.randomiseGrid(cellAmt);
+
+                grid.printGrid();
+
+                simulating = true;
+            }
+            else if (input.substr(0,4) == "load") {
+                cout << "name of file to load:";
+                string name;
+                cin >> name;
+
+                grid.loadFromFile(name);
+                grid.printGrid();
+                simulating = true;
+            }
         }
-        if (input.substr(0,4) == "load") {
-            cout << "name of file to load:";
-            string name;
-            cin >> name;
-            grid.loadFromFile(name);
-            grid.printGrid();
-        }
+
+
     }
 
 
