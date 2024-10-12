@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <thread>
+#include <math.h>
 
 using namespace std;
 
@@ -14,7 +16,9 @@ pair<int, int> directions[8] = {
         { -1,  0 },                { 1,  0 },
         { -1,  1 }, { 0,  1 }, { 1,  1 }};
 
-
+void printA(){
+    cout << "A";
+}
 
 class Grid {
 public:
@@ -44,7 +48,7 @@ public:
                 grid[i*w + j] ? cout << fullChar : cout << emptyChar;
                 cout << " ";
             }
-            cout << endl;
+            cout << "|" <<endl;
         }
     }
 
@@ -53,7 +57,6 @@ public:
             while (true) {
                 int randX = rand() % w;
                 int randY = rand() % h;
-
                 if (!grid[randY*w + randX]) {
                     grid[randY*w + randX] = true;
                     break;
@@ -91,21 +94,46 @@ public:
     }
 
 
+    void stepThread(bool* tempGrid, int start, int end){
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int cellNumber = y*w + x;
+                tempGrid[cellNumber] = calculateCell(x, y);
+            }
+        }
+
+        for (int i = start; i < end; ++i) {
+            int x = i % w;
+            int y = (i - x) / w;
+            tempGrid[i] = calculateCell(x, y);
+        }
+
+    }
 
     void stepSimulation() {
-        bool tempGrid[cellCount];
+        bool* tempGrid = new bool[cellCount];
 
         for (int i = 0; i < cellCount; ++i) {
             tempGrid[i] = false;
         }
 
 
-        
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
-                int cellNumber = y*w + x;
-                tempGrid[cellNumber] = calculateCell(x, y);
-            }
+        float cellsPerThread = (float) cellCount/threadCount;
+
+//        thread thread1(&Grid::stepThread, this, tempGrid)
+
+        vector<thread> threads;
+
+        for (int i = 0; i < threadCount; ++i) {
+            int end = round((i+1) * cellsPerThread);
+            int start = round(i * cellsPerThread);
+            int assignedCells = end - start;
+            cout << assignedCells << "A";
+            threads.push_back(thread(&Grid::stepThread, this, tempGrid, start, end));
+        }
+
+        for (thread& t: threads) {
+            t.join();
         }
 
 
