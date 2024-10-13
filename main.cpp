@@ -3,6 +3,7 @@
 #include <random>
 #include <thread>
 #include <math.h>
+#include <chrono>
 
 using namespace std;
 
@@ -118,24 +119,14 @@ public:
         }
 
 
-        float cellsPerThread = (float) cellCount/threadCount;
 
-//        thread thread1(&Grid::stepThread, this, tempGrid)
 
-        vector<thread> threads;
-
-        for (int i = 0; i < threadCount; ++i) {
-            int end = round((i+1) * cellsPerThread);
-            int start = round(i * cellsPerThread);
-            int assignedCells = end - start;
-            cout << assignedCells << "A";
-            threads.push_back(thread(&Grid::stepThread, this, tempGrid, start, end));
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int cellNumber = y*w + x;
+                tempGrid[cellNumber] = calculateCell(x, y);
+            }
         }
-
-        for (thread& t: threads) {
-            t.join();
-        }
-
 
 
         for (int i = 0; i < cellCount; ++i) {
@@ -227,8 +218,14 @@ int main() {
             }
             else if (input.substr(0,4) == "step") {
 
+
+                auto t1 = chrono::high_resolution_clock::now();
                 grid.stepSimulation();
-                grid.printGrid();
+                auto t2 = chrono::high_resolution_clock::now();
+                auto ms_int = chrono::duration_cast<chrono::milliseconds>(t2-t1);
+                cout << ms_int.count() << "ms."<< endl;
+
+                //grid.printGrid();
             }
 
         } else {
@@ -237,6 +234,7 @@ int main() {
             if (input.substr(0,3) == "new") {
                 int x, y, cellAmt;
                 cout << "x: ";
+
                 cin >> x;
                 cout << "y: ";
                 cin >> y;
@@ -247,7 +245,7 @@ int main() {
                 grid.initGrid(x, y);
                 grid.randomiseGrid(cellAmt);
 
-                grid.printGrid();
+                //grid.printGrid();
 
                 simulating = true;
             }
