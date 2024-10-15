@@ -15,7 +15,8 @@ Command Line Interface:
 
 
 TODO:
-Matching static patterns
+DONE Matching static patterns
+Matching oscillating patterns
 Matching moving patterns
 Multithreading
 Run experiments with several patterns to find ERN numbers
