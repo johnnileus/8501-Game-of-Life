@@ -188,101 +188,105 @@ private:
 
 };
 
-class BasePattern {
+class StaticPattern {
 public:
     int w;
     int h;
     int cellCount;
     vector<bool> pattern;
 
-    BasePattern(vector<bool> newPat, int width, int height) {
+    StaticPattern(vector<bool> newPat, int width, int height) {
         pattern = newPat;
         w = width;
         h = height;
         cellCount = w * h;
     }
 
-    void findInGrid(Grid grid) {
-        for (int y = 0; y < grid.h; ++y) {
-            for (int x = 0; x < grid.w; ++x) {
 
-                int totalMatches = 0;
-                for (int i = 0; i < cellCount; ++i) {
 
-                    int patX = i % w;
-                    int patY = (i - patX) / w;
-
-                    int newX = patX + x;
-                    int newY = patY + y;
-
-                    if (newX < grid.w && newY < grid.h) {
-                        if (grid.grid[newY*grid.w + newX] == pattern[i]){
-                            totalMatches++;
-                        } else {break;}
-                    }
-
-                }
-                if (totalMatches == cellCount) {
-                    totalMatches = 0;
-                    cout << "matching" << x <<" "<< y << " ";
-                    for (int a = -1; a < w+1; ++a) {
-
-                        //top row calculations
-                        bool topRow;
-                        if (y-1 < 0) {
-                            topRow = 0;
-                        } else {
-                            topRow = grid.grid[(y-1)*grid.w + x + a];
-                        }
-
-                        //bottom row calculations
-                        bool bottomRow;
-                        if (y + h >= grid.h) {
-                            bottomRow = 0;
-                        } else {
-                            bottomRow = (grid.grid[(y+h)*grid.w + x + a]);
-                        }
-
-                        if (!topRow && !bottomRow) {
-                            totalMatches++;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    for (int b = 0; b < h; ++b) {
-                        bool leftCol;
-                        if (x-1 < 0) {
-                            leftCol = 0;
-                        } else {
-                            leftCol = grid.grid[(y+b)*grid.w + x - 1];
-                        }
-                        bool rightCol;
-                        if (x-1 < 0) {
-                            rightCol = 0;
-                        } else {
-                            rightCol = grid.grid[(y+b)*grid.w + x + w];
-                        }
-                        cout << "| x:" << x << " y:" << y << " b:"  << b << " "<< leftCol << " " << rightCol << "|";
-                        if (!leftCol && !rightCol) {
-                            totalMatches++;
-                        } else {
-                            break;
-                        }
-                    }
-                    
-                    cout << "."<< totalMatches << " " << (w+2)*2 << endl;
-                    if (totalMatches == w+2 + h) {
-                        cout << "MATCH: " << x << " " << y;
-                    }
-                    cout << endl;
-                }
-            }
-        }
-
-    }
 private:
 };
+
+
+void findInGrid(Grid grid, StaticPattern pat) {
+    for (int y = 0; y < grid.h; ++y) {
+        for (int x = 0; x < grid.w; ++x) {
+
+            int totalMatches = 0;
+            for (int i = 0; i < pat.cellCount; ++i) {
+
+                int patX = i % pat.w;
+                int patY = (i - patX) / pat.w;
+
+                int newX = patX + x;
+                int newY = patY + y;
+
+                if (newX < grid.w && newY < grid.h) {
+                    if (grid.grid[newY * grid.w + newX] == pat.pattern[i]) {
+                        totalMatches++;
+                    } else { break; }
+                }
+
+            }
+            if (totalMatches == pat.cellCount) {
+                totalMatches = 0;
+                cout << "matching" << x << " " << y << " ";
+                for (int a = -1; a < pat.w + 1; ++a) {
+
+                    //top row calculations
+                    bool topRow;
+                    if (y - 1 < 0) {
+                        topRow = 0;
+                    } else {
+                        topRow = grid.grid[(y - 1) * grid.w + x + a];
+                    }
+
+                    //bottom row calculations
+                    bool bottomRow;
+                    if (y + pat.h >= grid.h) {
+                        bottomRow = 0;
+                    } else {
+                        bottomRow = (grid.grid[(y + pat.h) * grid.w + x + a]);
+                    }
+
+                    if (!topRow && !bottomRow) {
+                        totalMatches++;
+                    } else {
+                        break;
+                    }
+                }
+
+                for (int b = 0; b < pat.h; ++b) {
+                    bool leftCol;
+                    if (x - 1 < 0) {
+                        leftCol = 0;
+                    } else {
+                        leftCol = grid.grid[(y + b) * grid.w + x - 1];
+                    }
+                    bool rightCol;
+                    if (x - 1 < 0) {
+                        rightCol = 0;
+                    } else {
+                        rightCol = grid.grid[(y + b) * grid.w + x + pat.w];
+                    }
+                    cout << "| x:" << x << " y:" << y << " b:" << b << " " << leftCol << " " << rightCol << "|";
+                    if (!leftCol && !rightCol) {
+                        totalMatches++;
+                    } else {
+                        break;
+                    }
+                }
+
+                cout << "." << totalMatches << " " << (pat.w + 2) * 2 << endl;
+                if (totalMatches == pat.w + 2 + pat.h) {
+                    cout << "MATCH: " << x << " " << y;
+                }
+                cout << endl;
+            }
+        }
+    }
+
+}
 
 int main() {
     //setup
@@ -295,13 +299,13 @@ int main() {
 
 
     vector<bool> arr = {1,1,1,1};
-    BasePattern block = BasePattern(arr, 2, 2);
+    StaticPattern block = StaticPattern(arr, 2, 2);
 
     arr = {0,1,0,
            1,0,1,
            1,0,1,
            0,1,0};
-    BasePattern beehive = BasePattern(arr, 3,4);
+    StaticPattern beehive = StaticPattern(arr, 3, 4);
 
 
     while (true) {
@@ -332,8 +336,8 @@ int main() {
                 grid.printGrid();
             }
             else if (input.substr(0,5) == "match") {
-                block.findInGrid(grid);
-                beehive.findInGrid(grid);
+                findInGrid(grid, block);
+                findInGrid(grid, beehive);
             }
 
         } else {
