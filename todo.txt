@@ -1,0 +1,21 @@
+Q1: 15/15
+Q2: 0/10
+Q3: 0/10
+Q4: 0/10
+Q5: 0/20
+
+5 marks each:
+Functions: X
+Object Orientation: X
+Operator Overloading:
+Polymorphism:
+Templates:
+Threading:
+Command Line Interface:
+
+
+TODO:
+Matching static patterns
+Matching moving patterns
+Multithreading
+Run experiments with several patterns to find ERN numbers
