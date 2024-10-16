@@ -313,26 +313,41 @@ private:
 
 class Pattern {
 public:
+    string Name;
     int period;
     vector<pair<int, int>> offsets;
     vector<BasePattern> patterns;
 
-    Pattern(vector<BasePattern> pats, vector<pair<int,int>> offs) {
+    Pattern(string name, vector<BasePattern> pats, vector<pair<int,int>> offs) {
+        Name = name;
         period = pats.size();
         patterns = pats;
         offsets = offs;
     }
 
-    vector<MatchedPattern>* search(Grid grid) {
-        vector<MatchedPattern>* matchedPatterns = new vector<MatchedPattern>;
+    void search(Grid grid, vector<MatchedPattern> *matchedPats) {
+        vector<MatchedPattern>* newPats = new vector<MatchedPattern>;
         for (int i = 0; i < period; ++i) {
             vector<pair<int, int>>* matches = findInGrid(grid, patterns[i]);
             for (auto match : *matches) {
-                matchedPatterns->push_back(MatchedPattern(match.first, match.second, i, this));
+                newPats->push_back(MatchedPattern(match.first, match.second, i, this));
             }
             delete matches;
         }
-        return matchedPatterns;
+
+        for (auto pat: *newPats) {
+            bool pass = true;
+            for (auto existingPat: *matchedPats) {
+                if (pat.x == existingPat.x || pat.y == existingPat.y) {
+                    pass = false;
+                }
+            }
+            if (pass) {
+                matchedPats->push_back(pat);
+            }
+        }
+        delete newPats;
+
     }
 };
 
@@ -349,7 +364,10 @@ int main() {
 
 
     vector<bool> arr = {1,1,1,1};
-    BasePattern block = BasePattern(arr, 2, 2);
+    vector<pair<int,int>> offsets = {{0,0}};
+    BasePattern block1 = BasePattern(arr, 2, 2);
+    Pattern block = Pattern("BLOCK", {block1}, offsets);
+
 
     arr = {0,1,0,
            1,0,1,
@@ -358,10 +376,22 @@ int main() {
     BasePattern beehive = BasePattern(arr, 3, 4);
 
     arr = {1,1,1};
-    vector<pair<int,int>> offsets = {{1,-1}, {-1, 1}};
-    Pattern blinker = Pattern({BasePattern(arr, 1, 3), BasePattern(arr, 3, 1)}, offsets);
+    offsets = {{1,-1}, {-1, 1}};
+    Pattern blinker = Pattern("BLINKER", {BasePattern(arr, 1, 3),
+                                          BasePattern(arr, 3, 1)}, offsets);
 
-    arr = {};
+    arr = {0,1,0,0,0,1,1,1,1};
+    BasePattern glider1 = BasePattern(arr, 3, 3);
+    arr = {1,0,1,0,1,1,0,1,0};
+    BasePattern glider2 = BasePattern(arr, 3, 3);
+    arr = {0,0,1,1,0,1,0,1,1};
+    BasePattern glider3 = BasePattern(arr, 3, 3);
+    arr = {1,0,0,0,1,1,1,1,0};
+    BasePattern glider4 = BasePattern(arr, 3, 3);
+    offsets = {{0,0}, {0,1},{0,0},{1,0}};
+    Pattern glider = Pattern("GLIDER", {glider1, glider2, glider3, glider4}, offsets);
+
+
 
     vector<MatchedPattern> matchedPatterns;
     while (true) {
@@ -424,24 +454,15 @@ int main() {
                 }
 
 
-                vector<MatchedPattern>* newPats = blinker.search(grid);
+                blinker.search(grid, &matchedPatterns);
+                block.search(grid, &matchedPatterns);
+                glider.search(grid, &matchedPatterns);
                 // add new pats to existing pat vector if coordinates are unique
-                for (auto pat: *newPats) {
-                    bool pass = true;
-                    for (auto existingPat: matchedPatterns) {
-                        if (pat.x == existingPat.x || pat.y == existingPat.y) {
-                            pass = false;
-                        }
-                    }
-                    if (pass) {
-                        matchedPatterns.push_back(pat);
-                    }
-                }
-                delete newPats;
 
 
+                cout << "Pattern count: " << matchedPatterns.size() << endl;
                 for (auto pat: matchedPatterns) {
-                    cout << "PATTERN x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
+                    cout << "PATTERN " << pat.pattern->Name <<  ", x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
                 }
 
 
@@ -454,7 +475,7 @@ int main() {
             }
 
         } else {
-            cout << "cmds: new, load: ";
+            cout << "cmds: stop, new, load: ";
             cin >> input;
             if (input.substr(0,3) == "new") {
                 int x, y, cellAmt;
@@ -482,6 +503,8 @@ int main() {
                 grid.loadFromFile(name);
                 grid.printGrid();
                 simulating = true;
+            } else if (input.substr(0,4) == "stop") {
+                break;
             }
         }
 
