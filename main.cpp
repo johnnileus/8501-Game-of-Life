@@ -265,7 +265,7 @@ bool matchCoordinate(Grid grid, BasePattern pat, int x, int y) {
         }
 
         if (totalMatches == pat.w + 2 + pat.h) {
-            cout << "MATCH: " << x << " " << y << endl;
+//            cout << "MATCH: " << x << " " << y << endl;
             return true;
         }
     }
@@ -284,9 +284,7 @@ vector<pair<int,int>>* findInGrid(Grid grid, BasePattern pat) {
 
         }
     }
-    for(auto& match: *matches) {
-        cout << ":" << match.first << " "<<match.second << endl;
-    }
+
     return matches;
 }
 
@@ -298,6 +296,7 @@ public:
     int y;
     int stage;
     int streak;
+    bool toDelete;
     Pattern* pattern;
 
     MatchedPattern(int newx, int newy, int newstage, Pattern* ptrn) {
@@ -306,6 +305,7 @@ public:
         stage = newstage;
         streak = 1;
         pattern = ptrn;
+        toDelete = false;
     }
 
 private:
@@ -361,6 +361,7 @@ int main() {
     vector<pair<int,int>> offsets = {{1,-1}, {-1, 1}};
     Pattern blinker = Pattern({BasePattern(arr, 1, 3), BasePattern(arr, 3, 1)}, offsets);
 
+    arr = {};
 
     vector<MatchedPattern> matchedPatterns;
     while (true) {
@@ -396,39 +397,60 @@ int main() {
 
 
                 grid.printGrid();
-            }
-            else if (input.substr(0,5) == "match") {
 
+                //------------------------
+                //search for matches
                 for (int i = 0; i < matchedPatterns.size(); ++i) {
                     MatchedPattern *pat = &matchedPatterns[i];
 
-                    cout << "Pattern: " << pat->x << pat->y << ", streak:" << pat->streak << endl;
+//                    cout << "Pattern: " << pat->x << pat->y << ", streak:" << pat->streak << endl;
                     pair<int,int> offset = pat->pattern->offsets[pat->stage];
 
-//                    cout << "bwuh: " << pat.stage << " " << pat.x + offset.first << " " << pat.y + offset.second;
-//                    cout << endl;
                     if (matchCoordinate(grid, pat->pattern->patterns[pat->stage],
-                                      pat->x + offset.first, pat->y + offset.second)) {
-                        cout << "AAAAAA";
+                                        pat->x + offset.first, pat->y + offset.second)) {
                         pat->streak++;
                         pat->x += offset.first;
                         pat->y += offset.second;
                     } else {
-                        //remove pattern from vector
+                        pat->toDelete=true;
                     }
                 }
 
 
+                for (int i = matchedPatterns.size() - 1; i >= 0 ; --i) {
+                    if (matchedPatterns[i].toDelete) {
+                        matchedPatterns.erase(matchedPatterns.begin() + i);
+                    }
+                }
+
 
                 vector<MatchedPattern>* newPats = blinker.search(grid);
-                matchedPatterns.insert(matchedPatterns.end(), newPats->begin(), newPats->end());
+                // add new pats to existing pat vector if coordinates are unique
+                for (auto pat: *newPats) {
+                    bool pass = true;
+                    for (auto existingPat: matchedPatterns) {
+                        if (pat.x == existingPat.x || pat.y == existingPat.y) {
+                            pass = false;
+                        }
+                    }
+                    if (pass) {
+                        matchedPatterns.push_back(pat);
+                    }
+                }
                 delete newPats;
-                cout << "A" << matchedPatterns.size();
 
+
+                for (auto pat: matchedPatterns) {
+                    cout << "PATTERN x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
+                }
 
 
 //                findInGrid(grid, block);
 //                findInGrid(grid, beehive);
+
+            }
+            else if (input.substr(0,5) == "match") {
+
             }
 
         } else {
