@@ -12,7 +12,7 @@ using namespace std;
 static char emptyChar = '.';
 static char fullChar = '#';
 
-static int threadCount = 8;
+static int threadCount = 14;
 
 pair<int, int> directions[8] = {
         { -1, -1 }, { 0, -1 }, { 1, -1 },
@@ -551,11 +551,11 @@ void step(Grid &grid, vector<MatchedPattern> &matchedPatterns) {
 }
 
 unordered_map<string, int> ERNMap = {
-        {"Block", 0},
-        {"Beehive", 1},
-        {"Blinker", 2},
-        {"Toad", 3},
-        {"Glider", 4},
+        {"BLOCK", 0},
+        {"BEEHIVE", 1},
+        {"BLINKER", 2},
+        {"TOAD", 3},
+        {"GLIDER", 4},
         {"LWSS", 5},
 };
 
@@ -574,16 +574,20 @@ public:
     }
 
     void updateValues(int newERN, int newSeed, int newWidth, int newHeight) {
-
+        lowestERN = newERN;
+        lowestSeed = newSeed;
+        lowestWidth = newWidth;
+        lowestHeight = newHeight;
     }
 };
 
-ERN ERNarr[6] = {ERN("Block"), ERN("Beehive"), ERN("Blinker"),
-ERN("Toad"), ERN("Glider"), ERN("LWSS")};
+ERN ERNarr[6] = {ERN("BLOCK"), ERN("BEEHIVE"), ERN("BLINKER"),
+ERN("TOAD"), ERN("GLIDER"), ERN("LWSS")};
 
 void threadCalculator(int id){
     srand(id);
     for (int i = 0; i < 100; ++i) {
+        cout << ".";
         Grid grid = Grid();
         int w = rand()%35 + 5;
         int h = rand()%35 + 5;
@@ -604,10 +608,13 @@ void threadCalculator(int id){
                 if (temp->lowestERN > ERNval) {
                     lock_guard<mutex> lock(temp->mut);
                     temp->updateValues(ERNval, id, w, h);
+                    cout << endl << "New lowest ERN: " << ERNval << " " << patName << " threadid:" << id << endl;
                 }
             }
 
         }
+
+
 
 
     }
@@ -725,6 +732,17 @@ int main() {
                 }
                 for (thread& t: threads) {
                     t.join();
+                }
+                cout << endl;
+                for (auto& x :ERNarr) {
+                    string name = x.patternName;
+                    if (x.lowestERN != 999999) {
+                        cout << name << " ERN: " << x.lowestERN;
+                        cout << " | Seed:" << x.lowestSeed;
+                        cout << " | Grid width and height:" << x.lowestWidth<<","<<x.lowestHeight << endl;
+                    } else {
+                        cout << name << " wasnt found." << endl;
+                    }
                 }
             }
         }
