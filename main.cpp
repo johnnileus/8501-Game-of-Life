@@ -4,13 +4,15 @@
 #include <thread>
 #include <math.h>
 #include <chrono>
+#include <mutex>
+#include <unordered_map>
 
 using namespace std;
 
 static char emptyChar = '.';
 static char fullChar = '#';
 
-static int threadCount = 12;
+static int threadCount = 8;
 
 pair<int, int> directions[8] = {
         { -1, -1 }, { 0, -1 }, { 1, -1 },
@@ -26,9 +28,10 @@ public:
     int h;
     int cellCount;
 
-    void initGrid(int cols, int rows){
-        w = cols;
-        h = rows;
+    template <typename T>
+    void initGrid(T cols, T rows){
+        w = (int) cols;
+        h = (int) rows;
         cellCount = w * h;
         //create 2d array in heap;
         grid = new bool[cellCount];
@@ -92,6 +95,10 @@ public:
 
     }
 
+    Grid operator++(int) {
+        stepSimulation();
+    }
+
     void stepSimulation() {
         bool* tempGrid = new bool[cellCount];
 
@@ -100,21 +107,7 @@ public:
         }
 
 
-//        float cellsPerThread = (float) cellCount/threadCount;
-//
-//        vector<thread> threads;
-//
-//        for (int i = 0; i < threadCount; ++i) {
-//            int end = round((i+1) * cellsPerThread);
-//            int start = round(i * cellsPerThread);
-//            int assignedCells = end - start;
-//            cout << assignedCells << "A";
-//            threads.push_back(thread(&Grid::stepThread, this, tempGrid, start, end));
-//        }
-//
-//        for (thread& t: threads) {
-//            t.join();
-//        }
+
 
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
@@ -171,9 +164,9 @@ public:
 
     }
 
-    void saveToFile(string fileName) {
+    void saveToFile(string fileName, int seed) {
         ofstream file(fileName+".txt");
-        file << w << endl << h << endl;
+        file << w << endl << h << endl << seed << endl;
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
                 file << grid[y*w + x];
@@ -292,6 +285,8 @@ class Pattern;
 
 class MatchedPattern {
 public:
+    int originalx;
+    int originaly;
     int x;
     int y;
     int stage;
@@ -302,6 +297,8 @@ public:
     MatchedPattern(int newx, int newy, int newstage, Pattern* ptrn) {
         x = newx;
         y = newy;
+        originalx = newx;
+        originaly = newy;
         stage = newstage;
         streak = 1;
         pattern = ptrn;
@@ -353,49 +350,283 @@ public:
 
 
 
+vector<bool> rotateVector90(vector<bool> inp, int w, int h){
+    vector<bool> arr;
+    for (int i = 0; i < inp.size(); ++i) {
+        int oldx = i % w;
+        int oldy = i / w;
+
+        int newx =  oldy;
+        int newy = w - 1 - oldx;
+
+        int newIndex = newy * h + newx;
+        arr.push_back(inp[newIndex]);
+    }
+    return arr;
+}
+
+vector<bool> rotateVector180(vector<bool> inp, int w, int h){
+    vector<bool> arr;
+    for (int i = 0; i < inp.size(); ++i) {
+        int oldx = i % w;
+        int oldy = i / w;
+
+        int newx = w - 1 - oldx;
+        int newy = h - 1 - oldy;
+
+        int newIndex = newy * w + newx;
+        arr.push_back(inp[newIndex]);
+    }
+    return arr;
+}
+
+vector<bool> rotateVector270(vector<bool> inp, int w, int h){
+    vector<bool> arr;
+    for (int i = 0; i < inp.size(); ++i) {
+        int oldx = i % w;
+        int oldy = i / w;
+
+        int newx = h - 1 - oldy;
+        int newy = oldx;
+
+        int newIndex = newy * h + newx;
+        arr.push_back(inp[newIndex]);
+    }
+    return arr;
+}
+
+
+
+// ---------- you're now entering the spaghetti zone -----------
+
+//block
+vector<bool> arr1 = {1,1,1,1};
+vector<pair<int,int>> offsets1 = {{0,0}};
+BasePattern block1 = BasePattern(arr1, 2, 2);
+Pattern block = Pattern("BLOCK", {block1}, offsets1);
+
+//behive
+vector<bool> arr2 = {0,1,0,
+       1,0,1,
+       1,0,1,
+       0,1,0};
+BasePattern beehiveNS1 = BasePattern(arr2, 3, 4);
+BasePattern beehiveEW1 = BasePattern(rotateVector90(arr2, 3, 4), 4,3);
+Pattern beehiveNS = Pattern("BEEHIVE", {beehiveNS1}, {{0,0}});
+Pattern beehiveEW = Pattern("BEEHIVE", {beehiveEW1}, {{0,0}});
+
+//toad
+vector<bool> arr3 = {0,1,1,1,1,1,1,0};
+BasePattern toadN1 = BasePattern(arr3, 4,2);
+BasePattern toadE1 = BasePattern(rotateVector90(arr3, 4, 2), 2, 4);
+vector<bool> arr4 = {0,0,1,0,1,0,0,1,1,0,0,1,0,1,0,0};
+BasePattern toadN2 = BasePattern(arr4, 4,4);
+BasePattern toadE2 = BasePattern(rotateVector90(arr4, 4, 4), 4, 4);
+Pattern toadN = Pattern("TOAD", {toadN1, toadN2}, {{0,1}, {0,-1}});
+Pattern toadE = Pattern("TOAD", {toadE1, toadE2}, {{1,0}, {-1,1}});
+
+
+
+//blinker
+vector<bool> arr5 = {1,1,1};
+vector<pair<int,int>> offsets2 = {{1,-1}, {-1, 1}};
+Pattern blinker = Pattern("BLINKER", {BasePattern(arr5, 1, 3),
+                                      BasePattern(arr5, 3, 1)}, offsets2);
+
+
+
+//glider
+vector<bool> arr6 = {0,1,0,0,0,1,1,1,1};
+BasePattern gliderSE1 = BasePattern(arr6, 3, 3);
+BasePattern gliderSW1 = BasePattern(rotateVector90(arr6, 3, 3), 3, 3);
+BasePattern gliderNW1 = BasePattern(rotateVector180(arr6, 3, 3), 3, 3);
+BasePattern gliderNE1 = BasePattern(rotateVector270(arr6, 3, 3), 3, 3);
+vector<bool> arr7 = {1,0,1,0,1,1,0,1,0};
+BasePattern gliderSE2 = BasePattern(arr7, 3, 3);
+BasePattern gliderSW2 = BasePattern(rotateVector90(arr7, 3, 3), 3, 3);
+BasePattern gliderNW2 = BasePattern(rotateVector180(arr7, 3, 3), 3, 3);
+BasePattern gliderNE2 = BasePattern(rotateVector270(arr7, 3, 3), 3, 3);
+vector<bool> arr8 = {0,0,1,1,0,1,0,1,1};
+BasePattern gliderSE3 = BasePattern(arr8, 3, 3);
+BasePattern gliderSW3 = BasePattern(rotateVector90(arr8, 3, 3), 3, 3);
+BasePattern gliderNW3 = BasePattern(rotateVector180(arr8, 3, 3), 3, 3);
+BasePattern gliderNE3 = BasePattern(rotateVector270(arr8, 3, 3), 3, 3);
+vector<bool> arr9 = {1,0,0,0,1,1,1,1,0};
+BasePattern gliderSE4 = BasePattern(arr9, 3, 3);
+BasePattern gliderSW4 = BasePattern(rotateVector90(arr9, 3, 3), 3, 3);
+BasePattern gliderNW4 = BasePattern(rotateVector180(arr9, 3, 3), 3, 3);
+BasePattern gliderNE4 = BasePattern(rotateVector270(arr9, 3, 3), 3, 3);
+vector<pair<int,int>> offsets3 = {{0,0}, {0,1},{0,0},{1,0}};
+Pattern gliderSE = Pattern("GLIDER", {gliderSE1, gliderSE2, gliderSE3, gliderSE4}, offsets3);
+vector<pair<int,int>> offsets4 = {{0,0}, {-1,0},{0,0},{0,1}};
+Pattern gliderSW = Pattern("GLIDER", {gliderSW1, gliderSW2, gliderSW3, gliderSW4}, offsets4);
+vector<pair<int,int>> offsets5 = {{0,0}, {0,-1},{0,0},{-1,0}};
+Pattern gliderNW = Pattern("GLIDER", {gliderNW1, gliderNW2, gliderNW3, gliderNW4}, offsets5);
+vector<pair<int,int>> offsets6 = {{0,0}, {1,0},{0,0},{0,-1}};
+Pattern gliderNE = Pattern("GLIDER", {gliderNE1, gliderNE2, gliderNE3, gliderNE4}, offsets6);
+
+//LWSS
+vector<bool> arr10 = {0,1,1,0,0,1,1,1,1,0,1,1,0,1,1,0,0,1,1,0};
+BasePattern LWSSE1 = BasePattern(arr10, 5,4);
+BasePattern LWSSS1 = BasePattern(rotateVector90(arr10, 5,4), 4, 5);
+BasePattern LWSSW1 = BasePattern(rotateVector180(arr10, 5,4), 5, 4);
+BasePattern LWSSN1 = BasePattern(rotateVector270(arr10, 5,4), 4, 5);
+vector<bool> arr11 = {1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,0,1,1,1,1};
+BasePattern LWSSE2 = BasePattern(arr11, 5, 4);
+BasePattern LWSSS2 = BasePattern(rotateVector90(arr11, 5, 4), 4, 5);
+BasePattern LWSSW2 = BasePattern(rotateVector180(arr11, 5, 4), 5, 4);
+BasePattern LWSSN2 = BasePattern(rotateVector270(arr11, 5, 4), 4, 5);
+vector<bool> arr12 = {0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,0};
+BasePattern LWSSE3 = BasePattern(arr12, 5, 4);
+BasePattern LWSSS3 = BasePattern(rotateVector90(arr12, 5, 4), 4, 5);
+BasePattern LWSSW3 = BasePattern(rotateVector180(arr12, 5, 4), 5, 4);
+BasePattern LWSSN3 = BasePattern(rotateVector270(arr12, 5, 4), 4, 5);
+vector<bool> arr13 = {0,1,1,1,1,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0};
+BasePattern LWSSE4 = BasePattern(arr13, 5, 4);
+BasePattern LWSSS4 = BasePattern(rotateVector90(arr13, 5, 4), 4, 5);
+BasePattern LWSSW4 = BasePattern(rotateVector180(arr13, 5, 4), 5, 4);
+BasePattern LWSSN4 = BasePattern(rotateVector270(arr13, 5, 4), 4, 5);
+
+vector<pair<int,int>> offsets7 = {{1,-1}, {0,0}, {1,1}, {0,0}};
+Pattern LWSSE = Pattern("LWSS", {LWSSE1, LWSSE2,LWSSE3,LWSSE4}, offsets7);
+vector<pair<int,int>> offsets8 = {{1,1}, {0,0}, {-1, 1}, {0,0}};
+Pattern LWSSS = Pattern("LWSS", {LWSSS1,LWSSS2,LWSSS3,LWSSS4}, offsets8);
+vector<pair<int,int>> offsets9 = {{-1, 1}, {0,0}, {-1, -1}, {0,0}};
+Pattern LWSSW = Pattern("LWSS", {LWSSW1,LWSSW2,LWSSW3,LWSSW4}, offsets9);
+vector<pair<int,int>> offsets10 = {{-1,-1}, {0,0}, {1, -1},{0,0}};
+Pattern LWSSN = Pattern("LWSS", {LWSSN1,LWSSN2,LWSSN3,LWSSN4}, offsets10);
+
+
+void step(Grid &grid, vector<MatchedPattern> &matchedPatterns) {
+    auto t1 = chrono::high_resolution_clock::now();
+    grid++;
+    for (auto& pat: matchedPatterns) {
+        pat.stage = (pat.stage+1) % pat.pattern->period;
+    }
+
+
+    //grid.printGrid();
+
+    //------------------------
+    //search for matches
+    for (int i = 0; i < matchedPatterns.size(); ++i) {
+        MatchedPattern *pat = &matchedPatterns[i];
+
+        pair<int,int> offset = pat->pattern->offsets[pat->stage];
+
+        if (matchCoordinate(grid, pat->pattern->patterns[pat->stage],
+                            pat->x + offset.first, pat->y + offset.second)) {
+            pat->streak++;
+            pat->x += offset.first;
+            pat->y += offset.second;
+        } else {
+            pat->toDelete=true;
+        }
+    }
+    // add new pats to existing pat vector if coordinates are unique
+
+    for (int i = matchedPatterns.size() - 1; i >= 0 ; --i) {
+        if (matchedPatterns[i].toDelete) {
+            matchedPatterns.erase(matchedPatterns.begin() + i);
+        }
+    }
+
+    blinker.search(grid, &matchedPatterns);
+    block.search(grid, &matchedPatterns);
+    beehiveNS.search(grid, &matchedPatterns);
+    beehiveEW.search(grid, &matchedPatterns);
+    gliderSE.search(grid, &matchedPatterns);
+    gliderSW.search(grid, &matchedPatterns);
+    gliderNW.search(grid, &matchedPatterns);
+    gliderNE.search(grid, &matchedPatterns);
+    toadN.search(grid, &matchedPatterns);
+    toadE.search(grid, &matchedPatterns);
+    LWSSE.search(grid, &matchedPatterns);
+    LWSSS.search(grid, &matchedPatterns);
+    LWSSW.search(grid, &matchedPatterns);
+    LWSSN.search(grid, &matchedPatterns);
+
+
+
+}
+
+unordered_map<string, int> ERNMap = {
+        {"Block", 0},
+        {"Beehive", 1},
+        {"Blinker", 2},
+        {"Toad", 3},
+        {"Glider", 4},
+        {"LWSS", 5},
+};
+
+
+class ERN{
+public:
+    mutex mut;
+    string patternName;
+    int lowestERN = 999999;
+    int lowestSeed = 0;
+    int lowestWidth = 0;
+    int lowestHeight = 0;
+
+    ERN(string name) {
+        patternName = name;
+    }
+
+    void updateValues(int newERN, int newSeed, int newWidth, int newHeight) {
+
+    }
+};
+
+ERN ERNarr[6] = {ERN("Block"), ERN("Beehive"), ERN("Blinker"),
+ERN("Toad"), ERN("Glider"), ERN("LWSS")};
+
+void threadCalculator(int id){
+    srand(id);
+    for (int i = 0; i < 100; ++i) {
+        Grid grid = Grid();
+        int w = rand()%35 + 5;
+        int h = rand()%35 + 5;
+        int cellCount = w*h;
+        int aliveCells = rand()%(cellCount - 10);
+        int ERNval = w + h + cellCount;
+
+        grid.initGrid(w, h);
+        grid.randomiseGrid(aliveCells);
+        vector<MatchedPattern> matchedPatterns;
+        for (int j = 0; j < 100; ++j) {
+            step(grid, matchedPatterns);
+
+            bool found = false;
+            for (auto pat: matchedPatterns) {
+                string patName = pat.pattern->Name;
+                ERN *temp = &ERNarr[ERNMap[patName]];
+                if (temp->lowestERN > ERNval) {
+                    lock_guard<mutex> lock(temp->mut);
+                    temp->updateValues(ERNval, id, w, h);
+                }
+            }
+
+        }
+
+
+    }
+}
+
 int main() {
     //setup
-    srand(2);
+    int seed = 0;
+    srand(seed);
     Grid grid = Grid();
-
 
     // if a grid is loaded;
     bool simulating = false;
 
-
-    vector<bool> arr = {1,1,1,1};
-    vector<pair<int,int>> offsets = {{0,0}};
-    BasePattern block1 = BasePattern(arr, 2, 2);
-    Pattern block = Pattern("BLOCK", {block1}, offsets);
-
-
-    arr = {0,1,0,
-           1,0,1,
-           1,0,1,
-           0,1,0};
-    BasePattern beehive = BasePattern(arr, 3, 4);
-
-    arr = {1,1,1};
-    offsets = {{1,-1}, {-1, 1}};
-    Pattern blinker = Pattern("BLINKER", {BasePattern(arr, 1, 3),
-                                          BasePattern(arr, 3, 1)}, offsets);
-
-    arr = {0,1,0,0,0,1,1,1,1};
-    BasePattern glider1 = BasePattern(arr, 3, 3);
-    arr = {1,0,1,0,1,1,0,1,0};
-    BasePattern glider2 = BasePattern(arr, 3, 3);
-    arr = {0,0,1,1,0,1,0,1,1};
-    BasePattern glider3 = BasePattern(arr, 3, 3);
-    arr = {1,0,0,0,1,1,1,1,0};
-    BasePattern glider4 = BasePattern(arr, 3, 3);
-    offsets = {{0,0}, {0,1},{0,0},{1,0}};
-    Pattern glider = Pattern("GLIDER", {glider1, glider2, glider3, glider4}, offsets);
-
-
-
     vector<MatchedPattern> matchedPatterns;
     while (true) {
         string input;
+
+        int currentStep = 0;
 
         if (simulating) {
             cout << "cmds: step, save, match, exit: ";
@@ -410,73 +641,39 @@ int main() {
                 cin >> name;
 
 
-                grid.saveToFile(name);
+                grid.saveToFile(name, seed);
             }
             else if (input.substr(0,4) == "step") {
+                int steps;
+                cout << "How many steps: ";
+                cin >> steps;
 
+                for (int i = 0; i < steps; ++i) {
+                    cout <<"Current step: " << currentStep << endl;
 
-                auto t1 = chrono::high_resolution_clock::now();
-                grid.stepSimulation();
-                auto t2 = chrono::high_resolution_clock::now();
-                auto ms_int = chrono::duration_cast<chrono::milliseconds>(t2-t1);
-                cout << ms_int.count() << "ms."<< endl;
+                    step(grid, matchedPatterns);
 
-                for (auto& pat: matchedPatterns) {
-                    pat.stage = (pat.stage+1) % pat.pattern->period;
-                }
-
-
-                grid.printGrid();
-
-                //------------------------
-                //search for matches
-                for (int i = 0; i < matchedPatterns.size(); ++i) {
-                    MatchedPattern *pat = &matchedPatterns[i];
-
-//                    cout << "Pattern: " << pat->x << pat->y << ", streak:" << pat->streak << endl;
-                    pair<int,int> offset = pat->pattern->offsets[pat->stage];
-
-                    if (matchCoordinate(grid, pat->pattern->patterns[pat->stage],
-                                        pat->x + offset.first, pat->y + offset.second)) {
-                        pat->streak++;
-                        pat->x += offset.first;
-                        pat->y += offset.second;
-                    } else {
-                        pat->toDelete=true;
+//                    cout << "Pattern count: " << matchedPatterns.size() << endl;
+                    bool found = false;
+                    for (auto pat: matchedPatterns) {
+//                    cout << "PATTERN " << pat.pattern->Name <<  ", x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
+                        if (pat.pattern->Name == "LWSS" && pat.streak > pat.pattern->period) {
+                            found = true;
+                        }
                     }
+
+                    currentStep++;
+
                 }
-
-
-                for (int i = matchedPatterns.size() - 1; i >= 0 ; --i) {
-                    if (matchedPatterns[i].toDelete) {
-                        matchedPatterns.erase(matchedPatterns.begin() + i);
-                    }
-                }
-
-
-                blinker.search(grid, &matchedPatterns);
-                block.search(grid, &matchedPatterns);
-                glider.search(grid, &matchedPatterns);
-                // add new pats to existing pat vector if coordinates are unique
-
-
-                cout << "Pattern count: " << matchedPatterns.size() << endl;
-                for (auto pat: matchedPatterns) {
-                    cout << "PATTERN " << pat.pattern->Name <<  ", x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
-                }
-
-
-//                findInGrid(grid, block);
-//                findInGrid(grid, beehive);
-
             }
             else if (input.substr(0,5) == "match") {
 
             }
 
         } else {
-            cout << "cmds: stop, new, load: ";
+            cout << "cmds: stop, experiments, new, load, thread: ";
             cin >> input;
+            cout << endl;
             if (input.substr(0,3) == "new") {
                 int x, y, cellAmt;
                 cout << "x: ";
@@ -503,8 +700,32 @@ int main() {
                 grid.loadFromFile(name);
                 grid.printGrid();
                 simulating = true;
-            } else if (input.substr(0,4) == "stop") {
+            }
+            else if (input.substr(0,4) == "stop") {
                 break;
+            }
+            else if (input.substr(0,11) == "experiments") {
+
+                cout << "Load the following files for the corresponding questions: "<< endl;
+                cout << "   (patterns stay alive for longer than their period)" << endl;
+                cout << "- QUESTION 2: File name: 'block', block appears at step 5. Took 1 experiment" << endl;
+                cout << "- QUESTION 3: File name: 'blinker', blinker appears at step 3. Took 1 experiment" << endl;
+                cout << "- QUESTION 4: File name: 'glider', blinker appears at step 67. Took 8 experiments" << endl;
+                cout << "File name to load: ";
+                string name;
+                cin >> name;
+                grid.loadFromFile(name);
+                grid.printGrid();
+                simulating = true;
+            }
+            else if (input.substr(0,6) == "thread") {
+                vector<thread> threads;
+                for (int i = 0; i < threadCount; ++i) {
+                    threads.push_back(thread(threadCalculator, i));
+                }
+                for (thread& t: threads) {
+                    t.join();
+                }
             }
         }
 
