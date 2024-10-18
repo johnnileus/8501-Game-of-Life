@@ -8,7 +8,7 @@ Q5: 20/20
 Functions: X
 Object Orientation: X
 Operator Overloading: X
-Polymorphism:
+Polymorphism: X
 Templates: X
 Threading: X
 Command Line Interface: X
@@ -19,4 +19,4 @@ DONE Matching static patterns
 DONE Matching oscillating patterns
 DONE Matching moving patterns
 DONE Multithreading
-Run experiments with several patterns to find ERN numbers
+DONE Run experiments with several patterns to find baseERN numbers

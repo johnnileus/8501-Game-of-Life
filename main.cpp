@@ -308,13 +308,14 @@ public:
 private:
 };
 
-class Pattern {
+
+
+class Pattern{
 public:
     string Name;
     int period;
     vector<pair<int, int>> offsets;
     vector<BasePattern> patterns;
-
     Pattern(string name, vector<BasePattern> pats, vector<pair<int,int>> offs) {
         Name = name;
         period = pats.size();
@@ -560,7 +561,7 @@ unordered_map<string, int> ERNMap = {
 };
 
 
-class ERN{
+class baseERN{
 public:
     mutex mut;
     string patternName;
@@ -569,7 +570,7 @@ public:
     int lowestWidth = 0;
     int lowestHeight = 0;
 
-    ERN(string name) {
+    baseERN(string name) {
         patternName = name;
     }
 
@@ -581,12 +582,38 @@ public:
     }
 };
 
+class ERN : public baseERN {
+public:
+
+    int step;
+
+    ERN(string name) : baseERN(name) {
+
+    }
+
+    void displayInfo() {
+        cout << patternName << " baseERN: " << lowestERN;
+        cout << " | Seed:" << lowestSeed;
+        cout << " | Grid width and height:" << lowestWidth<<","<< lowestHeight;
+        cout << " | Step: " << step << endl;
+    }
+
+    void updateValues(int newERN, int newSeed, int newWidth, int newHeight, int newStep) {
+        lowestERN = newERN;
+        lowestSeed = newSeed;
+        lowestWidth = newWidth;
+        lowestHeight = newHeight;
+        step = newStep;
+    }
+
+};
+
 ERN ERNarr[6] = {ERN("BLOCK"), ERN("BEEHIVE"), ERN("BLINKER"),
-ERN("TOAD"), ERN("GLIDER"), ERN("LWSS")};
+                 ERN("TOAD"), ERN("GLIDER"), ERN("LWSS")};
 
 void threadCalculator(int id){
     srand(id);
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 50; ++i) {
         cout << ".";
         Grid grid = Grid();
         int w = rand()%35 + 5;
@@ -607,8 +634,8 @@ void threadCalculator(int id){
                 ERN *temp = &ERNarr[ERNMap[patName]];
                 if (temp->lowestERN > ERNval) {
                     lock_guard<mutex> lock(temp->mut);
-                    temp->updateValues(ERNval, id, w, h);
-                    cout << endl << "New lowest ERN: " << ERNval << " " << patName << " threadid:" << id << endl;
+                    temp->updateValues(ERNval, id, w, h, j);
+                    cout << endl << "New lowest baseERN: " << ERNval << " " << patName << " threadid:" << id << endl;
                 }
             }
 
@@ -737,9 +764,7 @@ int main() {
                 for (auto& x :ERNarr) {
                     string name = x.patternName;
                     if (x.lowestERN != 999999) {
-                        cout << name << " ERN: " << x.lowestERN;
-                        cout << " | Seed:" << x.lowestSeed;
-                        cout << " | Grid width and height:" << x.lowestWidth<<","<<x.lowestHeight << endl;
+                        x.displayInfo();
                     } else {
                         cout << name << " wasnt found." << endl;
                     }
