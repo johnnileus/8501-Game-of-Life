@@ -569,16 +569,25 @@ public:
     int lowestSeed = 0;
     int lowestWidth = 0;
     int lowestHeight = 0;
+    int aliveCells = 0;
 
     baseERN(string name) {
         patternName = name;
     }
 
-    void updateValues(int newERN, int newSeed, int newWidth, int newHeight) {
+    virtual void displayInfo() {
+        cout << patternName << " baseERN: " << lowestERN;
+        cout << " | Seed:" << lowestSeed;
+        cout << " | Grid width and height:" << lowestWidth<<","<< lowestHeight;
+        cout << " | Alive Cells: " << aliveCells << endl;
+    }
+
+    virtual void updateValues(int newERN, int newSeed, int newWidth, int newHeight, int newAliveCells) {
         lowestERN = newERN;
         lowestSeed = newSeed;
         lowestWidth = newWidth;
         lowestHeight = newHeight;
+        aliveCells = newAliveCells;
     }
 };
 
@@ -591,18 +600,16 @@ public:
 
     }
 
-    void displayInfo() {
+    void displayInfo() override {
         cout << patternName << " baseERN: " << lowestERN;
         cout << " | Seed:" << lowestSeed;
         cout << " | Grid width and height:" << lowestWidth<<","<< lowestHeight;
-        cout << " | Step: " << step << endl;
+        cout << " | Step: " << step;
+        cout << " | Alive Cells: " << aliveCells << endl;
+
     }
 
-    void updateValues(int newERN, int newSeed, int newWidth, int newHeight, int newStep) {
-        lowestERN = newERN;
-        lowestSeed = newSeed;
-        lowestWidth = newWidth;
-        lowestHeight = newHeight;
+    void updateStep(int newStep) {
         step = newStep;
     }
 
@@ -611,9 +618,9 @@ public:
 ERN ERNarr[6] = {ERN("BLOCK"), ERN("BEEHIVE"), ERN("BLINKER"),
                  ERN("TOAD"), ERN("GLIDER"), ERN("LWSS")};
 
-void threadCalculator(int id){
+void threadCalculator(int id, int gridCount){
     srand(id);
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < gridCount; ++i) {
         cout << ".";
         Grid grid = Grid();
         int w = rand()%35 + 5;
@@ -634,8 +641,9 @@ void threadCalculator(int id){
                 ERN *temp = &ERNarr[ERNMap[patName]];
                 if (temp->lowestERN > ERNval) {
                     lock_guard<mutex> lock(temp->mut);
-                    temp->updateValues(ERNval, id, w, h, j);
-                    cout << endl << "New lowest baseERN: " << ERNval << " " << patName << " threadid:" << id << endl;
+                    temp->updateValues(ERNval, id, w, h, aliveCells);
+                    temp->updateStep(j);
+                    cout << endl << "New lowest ERN: " << ERNval << " " << patName << " threadid:" << id << endl;
                 }
             }
 
@@ -663,7 +671,9 @@ int main() {
         int currentStep = 0;
 
         if (simulating) {
-            cout << "cmds: step, save, match, exit: ";
+            cout << "------------------------------------------\n";
+            cout << "step - step grid by X steps\nsave -> save grid to file\n exit -> exit grid to main menu";
+            cout << "cmds: step, save, exit: ";
             cin >> input;
             if (input.substr(0,4) == "exit") {
                 simulating = false;
@@ -690,22 +700,22 @@ int main() {
 //                    cout << "Pattern count: " << matchedPatterns.size() << endl;
                     bool found = false;
                     for (auto pat: matchedPatterns) {
-//                    cout << "PATTERN " << pat.pattern->Name <<  ", x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
+                    cout << "PATTERN " << pat.pattern->Name <<  ", x:" << pat.x << " y:" << pat.y << " streak:" <<pat.streak << " stage:" << pat.stage << endl;
                         if (pat.pattern->Name == "LWSS" && pat.streak > pat.pattern->period) {
                             found = true;
                         }
                     }
-
+                    grid.printGrid();
                     currentStep++;
 
                 }
             }
-            else if (input.substr(0,5) == "match") {
-
-            }
 
         } else {
-            cout << "cmds: stop, experiments, new, load, thread: ";
+            cout << "-------------------------------------------------\n";
+            cout << "stop -> end experiment\nexperiments -> show questions 2-4\nnew -> create new grid\nload -> load grid from file";
+            cout << "thread -> find lowest ERN using threads\n";
+            cout << "--- CMDS: stop, experiments, new, load, thread: ";
             cin >> input;
             cout << endl;
             if (input.substr(0,3) == "new") {
@@ -754,8 +764,11 @@ int main() {
             }
             else if (input.substr(0,6) == "thread") {
                 vector<thread> threads;
+                cout << "how many grids?: ";
+                int gridCount;
+                cin >> gridCount;
                 for (int i = 0; i < threadCount; ++i) {
-                    threads.push_back(thread(threadCalculator, i));
+                    threads.push_back(thread(threadCalculator, i, gridCount));
                 }
                 for (thread& t: threads) {
                     t.join();
